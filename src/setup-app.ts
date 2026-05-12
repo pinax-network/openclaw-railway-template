@@ -610,10 +610,61 @@ interface DevicesResponse {
   }
 
   // ---------------------------------------------------------------------------
+  // Bootstrap / workspace files
+  // ---------------------------------------------------------------------------
+  const bootstrapStatusEl = $("bootstrapStatus");
+  const bootstrapFilesEl = $("bootstrapFiles");
+  const bootstrapWorkspaceDirEl = $("bootstrapWorkspaceDir");
+  const bootstrapReloadEl = $("bootstrapReload");
+
+  function escHtml(s: string): string {
+    return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+  }
+
+  async function refreshBootstrap(): Promise<void> {
+    if (!bootstrapFilesEl || !bootstrapStatusEl) return;
+    bootstrapStatusEl.textContent = "Loading…";
+    bootstrapFilesEl.innerHTML = "";
+    try {
+      const j = await httpJson<{
+        ok: boolean;
+        workspaceDir: string;
+        pending: boolean;
+        files: { name: string; path: string; exists: boolean; size: number; content: string }[];
+      }>("/setup/api/workspace/bootstrap");
+
+      if (bootstrapWorkspaceDirEl) bootstrapWorkspaceDirEl.textContent = j.workspaceDir;
+
+      bootstrapStatusEl.innerHTML = j.pending
+        ? '<span class="badge badge-warn">Bootstrap pending</span> Agent has not completed its first run.'
+        : '<span class="badge badge-ok">Bootstrap complete</span> Identity files present.';
+
+      bootstrapFilesEl.innerHTML = j.files.map((f) => {
+        const badge = f.exists
+          ? `<span class="badge badge-ok">${f.size} B</span>`
+          : '<span class="badge badge-warn">missing</span>';
+        const body = f.exists
+          ? (f.content
+              ? `<pre style="white-space:pre-wrap;max-height:400px;overflow:auto">${escHtml(f.content)}</pre>`
+              : `<div class="muted">File too large to inline (${f.size} B). Read on the gateway host: <code>${escHtml(f.path)}</code></div>`)
+          : `<div class="muted">Not present at <code>${escHtml(f.path)}</code></div>`;
+        return `<details style="margin-top:0.5rem;border:1px solid var(--border);border-radius:8px;padding:0.5rem 0.75rem">
+          <summary style="cursor:pointer;font-weight:500"><code>${escHtml(f.name)}</code> ${badge}</summary>
+          ${body}
+        </details>`;
+      }).join("");
+    } catch (e) {
+      bootstrapStatusEl.innerHTML = `<span class="badge badge-err">Error</span> ${String(e)}`;
+    }
+  }
+  if (bootstrapReloadEl) bootstrapReloadEl.onclick = refreshBootstrap;
+
+  // ---------------------------------------------------------------------------
   // Init
   // ---------------------------------------------------------------------------
   loadAuthGroupsFast();
   refreshStatus();
   refreshWebhookStatus();
   refreshChannelEnv();
+  refreshBootstrap();
 })();

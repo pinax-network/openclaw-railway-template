@@ -1039,10 +1039,31 @@ const SETUP_HTML = `<!doctype html>
       </div></div>
     </div>
 
+    <!-- Bootstrap / Workspace -->
+    <div class="section">
+      <button class="accordion-trigger" aria-expanded="false">
+        <span>③ Agent Bootstrap &amp; Workspace</span>
+      </button>
+      <div class="accordion-content"><div class="inner">
+        <p class="muted">
+          OpenClaw stores bootstrap files in the gateway workspace (<code id="bootstrapWorkspaceDir">…</code>).
+          When <code>BOOTSTRAP.md</code> is present, the agent has not yet run its first conversation.
+          Pair a channel (Telegram/Discord/Slack) or CLI device, then chat with the agent — it reads
+          <code>BOOTSTRAP.md</code>, asks questions, writes <code>IDENTITY.md</code>/<code>USER.md</code>/<code>SOUL.md</code>,
+          and removes <code>BOOTSTRAP.md</code>. <a href="https://docs.openclaw.ai/start/bootstrapping" target="_blank" rel="noreferrer">Docs</a>.
+        </p>
+        <div id="bootstrapStatus" class="muted" style="margin-bottom:0.5rem">Loading…</div>
+        <div class="btn-row">
+          <button id="bootstrapReload" class="btn btn-secondary btn-sm">Reload</button>
+        </div>
+        <div id="bootstrapFiles" style="margin-top:0.5rem"></div>
+      </div></div>
+    </div>
+
     <!-- GitHub App & Webhook -->
     <div class="section">
       <button class="accordion-trigger" aria-expanded="false">
-        <span>③ GitHub App &amp; Webhook Proxy</span>
+        <span>④ GitHub App &amp; Webhook Proxy</span>
       </button>
       <div class="accordion-content"><div class="inner">
         <p class="muted">Configure a GitHub App for webhook-driven workflows. The webhook proxy receives GitHub events, adds 👀 reactions, and forwards them to OpenClaw hooks.</p>
@@ -1260,6 +1281,7 @@ async function handleRequest(req: Request): Promise<Response> {
     if (method === "POST" && pathname === "/setup/api/pairing/approve") return handlePairingApprove(req);
     if (method === "GET" && pathname === "/setup/api/devices/pending") return handleDevicesPending();
     if (method === "POST" && pathname === "/setup/api/devices/approve") return handleDevicesApprove(req);
+    if (method === "GET" && pathname === "/setup/api/workspace/bootstrap") return handleWorkspaceBootstrap();
     if (method === "POST" && pathname === "/setup/api/github-app/save") return handleGitHubAppSave(req);
     if (method === "POST" && pathname === "/setup/api/reset") return handleReset();
     if (method === "GET" && pathname === "/setup/export") return handleExport();
@@ -1645,6 +1667,31 @@ async function handleConsoleRun(req: Request): Promise<Response> {
 
     const r = await handler();
     return json({ ok: r.code === 0, output: redactSecrets(r.output) }, r.code === 0 ? 200 : 500);
+  } catch (err) {
+    return json({ ok: false, error: String(err) }, 500);
+  }
+}
+
+const BOOTSTRAP_FILES = ["BOOTSTRAP.md", "IDENTITY.md", "USER.md", "SOUL.md"] as const;
+
+function handleWorkspaceBootstrap(): Response {
+  try {
+    const files = BOOTSTRAP_FILES.map((name) => {
+      const p = path.join(WORKSPACE_DIR, name);
+      const exists = fs.existsSync(p);
+      let content = "";
+      let size = 0;
+      if (exists) {
+        const stat = fs.statSync(p);
+        size = stat.size;
+        if (size <= 200_000) content = fs.readFileSync(p, "utf8");
+      }
+      return { name, path: p, exists, size, content };
+    });
+    const bootstrapFile = files.find((f) => f.name === "BOOTSTRAP.md")!;
+    const identityFile = files.find((f) => f.name === "IDENTITY.md")!;
+    const pending = bootstrapFile.exists || !identityFile.exists;
+    return json({ ok: true, workspaceDir: WORKSPACE_DIR, pending, files });
   } catch (err) {
     return json({ ok: false, error: String(err) }, 500);
   }
