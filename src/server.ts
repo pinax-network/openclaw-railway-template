@@ -919,7 +919,7 @@ const SETUP_HTML = `<!doctype html>
         <span id="statusDetails" class="muted"></span>
       </div>
       <div class="status-links">
-        <a href="/openclaw" target="_blank">Control UI ↗</a>
+        <a href="/" target="_blank">Control UI ↗</a>
       </div>
     </div>
 
@@ -1256,6 +1256,11 @@ async function handleRequest(req: Request): Promise<Response> {
   // --- Proxy to gateway ---
   if (!isConfigured() && !pathname.startsWith("/setup")) {
     return Response.redirect("/setup", 302);
+  }
+
+  if (method === "GET" && (pathname === "/openclaw" || pathname.startsWith("/openclaw/"))) {
+    const unmountedPath = pathname === "/openclaw" ? "/" : pathname.slice("/openclaw".length);
+    return Response.redirect(`${unmountedPath}${url.search}`, 302);
   }
 
   if (isConfigured()) {

@@ -114,6 +114,12 @@ async function main() {
       throw new Error("/ returned a wrapper gateway error instead of the OpenClaw gateway response");
     }
 
+    const prefixedFavicon = await request("/openclaw/favicon.svg");
+    console.log(`/openclaw/favicon.svg -> ${prefixedFavicon.status}`);
+    if (prefixedFavicon.status !== 302 || prefixedFavicon.headers.location !== "/favicon.svg") {
+      throw new Error("/openclaw/favicon.svg should redirect to /favicon.svg");
+    }
+
     console.log("smoke ok: / is reaching the OpenClaw gateway");
   } finally {
     cleanup("docker", ["rm", "-f", name]);
