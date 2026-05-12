@@ -7,7 +7,8 @@
     "start": "bun run src/server.ts",
     "lint": "bun run --bun src/server.ts --dry-run || true",
     "test": "bun test",
-    "smoke": "bun run scripts/smoke.js"
+    "smoke": "bun run scripts/smoke.js",
+    "smoke:gateway": "node scripts/smoke-local-gateway.mjs"
   },
   "devDependencies": {
     "@types/bun": "latest"

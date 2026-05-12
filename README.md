@@ -150,6 +150,14 @@ docker run --rm -p 8080:8080 \
 # open http://localhost:8080/setup (password: test)
 ```
 
+To smoke-test that `/` reaches the OpenClaw gateway for a specific release:
+
+```bash
+npm run smoke:gateway -- v2026.4.23
+```
+
+The smoke test builds the Docker image with that `OPENCLAW_GIT_REF`, starts it on `http://localhost:18080`, seeds the minimum gateway config, and fails if `/` still redirects to `/setup` or returns a wrapper gateway error.
+
 ## Troubleshooting
 
 ### "disconnected (1008): pairing required"
