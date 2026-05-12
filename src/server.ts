@@ -169,7 +169,18 @@ function isConfigured(): boolean {
   } catch { return false; }
 }
 
-
+function patchLegacyBind(): void {
+  try {
+    const p = configPath();
+    const config = JSON.parse(fs.readFileSync(p, "utf8"));
+    const bind = config?.gateway?.bind;
+    if (typeof bind === "string" && /^\d+\.\d+\.\d+\.\d+$/.test(bind)) {
+      config.gateway.bind = "loopback";
+      fs.writeFileSync(p, JSON.stringify(config, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+      console.log(`[startup] Patched gateway.bind from "${bind}" to "loopback"`);
+    }
+  } catch { /* best-effort */ }
+}
 
 // ---------------------------------------------------------------------------
 // Gateway process management
@@ -209,6 +220,8 @@ async function startGateway(): Promise<void> {
 
   fs.mkdirSync(STATE_DIR, { recursive: true });
   fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+
+  patchLegacyBind();
 
   const args = [
     "gateway", "run",

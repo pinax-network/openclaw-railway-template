@@ -60,7 +60,7 @@ Then visit `https://<your-app>.up.railway.app/setup` to complete setup.
 |----------|---------|-------------|
 | `INTERNAL_GATEWAY_PORT` | `18789` | Internal port for the OpenClaw gateway (wrapper proxies to this) |
 | `OPENCLAW_ENTRY` | `/openclaw/dist/entry.js` | Path to OpenClaw entry point |
-| `OPENCLAW_GIT_REF` | _(pinned tag)_ | Docker build arg — Git ref to build OpenClaw from |
+| `OPENCLAW_GIT_REF` | `v2026.4.23` | Docker build arg — Git ref to build OpenClaw from |
 
 ## Setting up a GitHub App
 
