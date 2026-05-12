@@ -66,6 +66,70 @@ function faviconResponse(): Response {
   }
 }
 
+function firstForwardedHeader(value: string | null): string {
+  return (value || "").split(",")[0]?.trim() || "";
+}
+
+function normalizeHttpOrigin(value: string): string | null {
+  try {
+    const url = new URL(value.trim());
+    if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+    return url.origin.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function publicOriginFromRequest(req: Request): string | null {
+  const origin = normalizeHttpOrigin(req.headers.get("origin") || "");
+  if (origin) return origin;
+
+  const forwardedHost = firstForwardedHeader(req.headers.get("x-forwarded-host"));
+  const host = forwardedHost || firstForwardedHeader(req.headers.get("host"));
+  if (host) {
+    const forwardedProto = firstForwardedHeader(req.headers.get("x-forwarded-proto"));
+    const proto = forwardedProto || (host.includes("localhost") || host.startsWith("127.") ? "http" : "https");
+    const fromHeaders = normalizeHttpOrigin(`${proto}://${host}`);
+    if (fromHeaders) return fromHeaders;
+  }
+
+  return normalizeHttpOrigin(req.url);
+}
+
+async function ensureControlUiAllowedOrigin(origin: string | null): Promise<boolean> {
+  if (!origin || !isConfigured()) return false;
+
+  const p = configPath();
+  let config: Record<string, any>;
+  try {
+    config = JSON.parse(fs.readFileSync(p, "utf8"));
+  } catch {
+    await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", "--json", "gateway.controlUi.allowedOrigins", JSON.stringify([origin])]));
+    return true;
+  }
+
+  const gateway = typeof config.gateway === "object" && config.gateway !== null ? config.gateway : {};
+  const controlUi = typeof gateway.controlUi === "object" && gateway.controlUi !== null ? gateway.controlUi : {};
+  const existing = Array.isArray(controlUi.allowedOrigins) ? controlUi.allowedOrigins : [];
+  const normalizedExisting = existing
+    .filter((value): value is string => typeof value === "string")
+    .map((value) => normalizeHttpOrigin(value) || value.trim().toLowerCase())
+    .filter(Boolean);
+
+  if (normalizedExisting.includes("*") || normalizedExisting.includes(origin)) return false;
+
+  config.gateway = {
+    ...gateway,
+    controlUi: {
+      ...controlUi,
+      allowedOrigins: [...existing, origin],
+    },
+  };
+
+  fs.writeFileSync(p, JSON.stringify(config, null, 2) + "\n", { encoding: "utf8", mode: 0o600 });
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // GitHub Webhook Proxy config
 // ---------------------------------------------------------------------------
@@ -1195,6 +1259,11 @@ async function handleRequest(req: Request): Promise<Response> {
   }
 
   if (isConfigured()) {
+    const addedOrigin = await ensureControlUiAllowedOrigin(publicOriginFromRequest(req));
+    if (addedOrigin && gatewayProc) {
+      await restartGateway();
+    }
+
     if (!entryExists()) {
       return html(errorPage(
         "OpenClaw Not Installed",
@@ -1368,6 +1437,10 @@ async function handleSetupRun(req: Request): Promise<Response> {
       await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", "gateway.bind", "loopback"]));
       await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", "gateway.port", String(INTERNAL_GATEWAY_PORT)]));
       await runCmd(OPENCLAW_NODE, clawArgs(["config", "set", "--json", "gateway.trustedProxies", JSON.stringify(["127.0.0.1"])]));
+      const publicOrigin = publicOriginFromRequest(req);
+      if (publicOrigin) {
+        await ensureControlUiAllowedOrigin(publicOrigin);
+      }
 
       // Custom provider
       if (payload.customProviderId?.trim() && payload.customProviderBaseUrl?.trim()) {
@@ -1808,6 +1881,10 @@ const server = Bun.serve<WSData>({
         return new Response("Not configured", { status: 503 });
       }
       try {
+        const addedOrigin = await ensureControlUiAllowedOrigin(publicOriginFromRequest(req));
+        if (addedOrigin && gatewayProc) {
+          await restartGateway();
+        }
         await ensureGatewayRunning();
       } catch {
         return new Response("Gateway not ready", { status: 503 });

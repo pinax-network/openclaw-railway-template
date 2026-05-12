@@ -97,6 +97,7 @@ async function main() {
       run("docker", ["exec", name, "openclaw", "config", "set", key, value]);
     }
     run("docker", ["exec", name, "openclaw", "config", "set", "--json", "gateway.trustedProxies", "[\"127.0.0.1\"]"]);
+    run("docker", ["exec", name, "openclaw", "config", "set", "--json", "gateway.controlUi.allowedOrigins", JSON.stringify([`http://127.0.0.1:${port}`])]);
 
     const health = await request("/healthz");
     console.log(`/healthz -> ${health.status}`);
