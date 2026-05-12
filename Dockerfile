@@ -83,6 +83,7 @@ RUN printf '%s\n' '#!/usr/bin/env bash' 'exec node /openclaw/dist/entry.js "$@"'
   && chmod +x /usr/local/bin/openclaw
 
 COPY src ./src
+COPY assets ./assets
 
 # The wrapper listens on $PORT.
 # IMPORTANT: Do not set a default PORT here.

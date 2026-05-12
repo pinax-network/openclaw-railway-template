@@ -52,6 +52,20 @@ function entryExists(): boolean {
   try { return fs.existsSync(OPENCLAW_ENTRY); } catch { return false; }
 }
 
+function faviconResponse(): Response {
+  try {
+    const favicon = fs.readFileSync(path.join(process.cwd(), "assets", "favicon.png"));
+    return new Response(favicon, {
+      headers: {
+        "Content-Type": "image/png",
+        "Cache-Control": "public, max-age=86400",
+      },
+    });
+  } catch {
+    return new Response("", { status: 404 });
+  }
+}
+
 // ---------------------------------------------------------------------------
 // GitHub Webhook Proxy config
 // ---------------------------------------------------------------------------
@@ -1137,10 +1151,7 @@ async function handleRequest(req: Request): Promise<Response> {
 
   // Favicon (no auth)
   if (method === "GET" && (pathname === "/favicon.ico" || pathname === "/favicon.png")) {
-    try {
-      const favicon = fs.readFileSync(path.join(process.cwd(), "assets", "favicon.png"));
-      return new Response(favicon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
-    } catch { return new Response("", { status: 404 }); }
+    return faviconResponse();
   }
 
   // GitHub webhook endpoint (no setup auth, uses HMAC)
@@ -1158,8 +1169,7 @@ async function handleRequest(req: Request): Promise<Response> {
       return new Response(setupAppBundle, { headers: { "Content-Type": "application/javascript" } });
     }
     if (method === "GET" && pathname === "/setup/favicon.png") {
-      const favicon = fs.readFileSync(path.join(process.cwd(), "assets", "favicon.png"));
-      return new Response(favicon, { headers: { "Content-Type": "image/png", "Cache-Control": "public, max-age=86400" } });
+      return faviconResponse();
     }
     if (method === "GET" && pathname === "/setup/api/status") return handleSetupStatus();
     if (method === "GET" && pathname === "/setup/api/webhook/status") return handleWebhookStatus();
