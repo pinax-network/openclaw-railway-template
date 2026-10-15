@@ -11,6 +11,16 @@
     "smoke:gateway": "node scripts/smoke-local-gateway.mjs"
   },
   "devDependencies": {
-    "@types/bun": "latest"
+    "@types/bun": "1.4.3"
+  },
+  "packageManager": "bun@1.4.3",
+  "engines": {
+    "bun": ">=1.4.3"
+  },
+  "devEngines": {
+    "packageManager": {
+      "name": "bun",
+      "onFail": "error"
+    }
   }
 }

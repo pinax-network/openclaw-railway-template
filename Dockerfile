@@ -1,5 +1,5 @@
 # Build openclaw from source to avoid npm packaging gaps (some dist files are not shipped).
-FROM node:22-bookworm AS openclaw-build
+FROM node:24-bookworm AS openclaw-build
 
 # Dependencies needed for openclaw build
 RUN apt-get update \
@@ -12,8 +12,8 @@ RUN apt-get update \
     g++ \
   && rm -rf /var/lib/apt/lists/*
 
-# Install Bun (openclaw build uses it)
-RUN curl -fsSL https://bun.sh/install | bash
+# Install Bun (openclaw build uses it), pinned rather than the latest release
+RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.4.3"
 ENV PATH="/root/.bun/bin:${PATH}"
 
 RUN corepack enable
@@ -33,6 +33,8 @@ RUN set -eux; \
     sed -i -E 's/"openclaw"[[:space:]]*:[[:space:]]*"workspace:[^"]+"/"openclaw": "*"/g' "$f"; \
   done
 
+# The sed patches above change package.json files, so the lockfile cannot be
+# frozen; upstream's pnpm-workspace.yaml sets minimumReleaseAge: 2880 (2 days).
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
 ENV OPENCLAW_PREFER_PNPM=1
@@ -40,7 +42,7 @@ RUN pnpm ui:install && pnpm ui:build
 
 
 # Runtime image — Bun for the wrapper, Node for OpenClaw gateway
-FROM oven/bun:latest AS runtime
+FROM oven/bun:1.4.3 AS runtime
 ENV NODE_ENV=production
 
 RUN apt-get update \
@@ -54,7 +56,7 @@ RUN apt-get update \
   && rm -rf /var/lib/apt/lists/*
 
 # Install Node.js (needed for OpenClaw gateway subprocess)
-RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
+RUN curl -fsSL https://deb.nodesource.com/setup_24.x | bash - \
   && apt-get install -y nodejs \
   && rm -rf /var/lib/apt/lists/*
 
