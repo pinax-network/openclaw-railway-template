@@ -35,11 +35,14 @@ RUN set -eux; \
 
 # The sed patches above change package.json files, so the lockfile cannot be
 # frozen. Upstream's pnpm-workspace.yaml sets minimumReleaseAge: 2880 (pnpm
-# counts minutes, so 2 days); raise it to 7200 (5 days), and fail the build if
-# the setting is gone.
+# counts minutes, so 2 days); raise it to 7200 (5 days). Upstream also exempts
+# its own "openclaw" package from the gate, and the patches above point the
+# extensions at "openclaw": "*", so a build would pull an openclaw published
+# minutes ago; drop that exemption. Fail the build if either edit misses.
 # supply-chain: allow pnpm here: it builds upstream OpenClaw with its own toolchain.
-RUN sed -i -E 's/^minimumReleaseAge:.*/minimumReleaseAge: 7200/' pnpm-workspace.yaml \
-  && grep -qx 'minimumReleaseAge: 7200' pnpm-workspace.yaml
+RUN sed -i -E -e 's/^minimumReleaseAge:.*/minimumReleaseAge: 7200/' -e '/^  - "openclaw"$/d' pnpm-workspace.yaml \
+  && grep -qx 'minimumReleaseAge: 7200' pnpm-workspace.yaml \
+  && ! grep -qx '  - "openclaw"' pnpm-workspace.yaml
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
 ENV OPENCLAW_PREFER_PNPM=1
