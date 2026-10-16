@@ -34,7 +34,11 @@ RUN set -eux; \
   done
 
 # The sed patches above change package.json files, so the lockfile cannot be
-# frozen; upstream's pnpm-workspace.yaml sets minimumReleaseAge: 2880 (2 days).
+# frozen. Upstream's pnpm-workspace.yaml sets minimumReleaseAge: 2880 (pnpm
+# counts minutes, so 2 days); raise it to 7200 (5 days), and fail the build if
+# the setting is gone.
+RUN sed -i -E 's/^minimumReleaseAge:.*/minimumReleaseAge: 7200/' pnpm-workspace.yaml \
+  && grep -qx 'minimumReleaseAge: 7200' pnpm-workspace.yaml
 RUN pnpm install --no-frozen-lockfile
 RUN pnpm build
 ENV OPENCLAW_PREFER_PNPM=1
