@@ -22,8 +22,9 @@ Please include:
 ## Pull requests
 
 - Keep PRs small and focused (one fix per PR)
-- Run locally:
-  - `pnpm lint`
-  - `pnpm test`
+- Run locally with Bun >= 1.4.3 (npm refuses to run here):
+  - `bun install`
+  - `bun run lint`
+  - `bun run test`
 
 If you’re making Dockerfile changes, please explain why they’re needed and how you tested.

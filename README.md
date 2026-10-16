@@ -153,7 +153,7 @@ docker run --rm -p 8080:8080 \
 To smoke-test that `/` reaches the OpenClaw gateway for a specific release:
 
 ```bash
-npm run smoke:gateway -- v2026.4.23
+bun run smoke:gateway v2026.4.23
 ```
 
 The smoke test builds the Docker image with that `OPENCLAW_GIT_REF`, starts it on `http://localhost:18080`, seeds the minimum gateway config, and fails if `/` still redirects to `/setup` or returns a wrapper gateway error.
